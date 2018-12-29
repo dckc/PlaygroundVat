@@ -1,9 +1,8 @@
 // A simple comm systme using Flows for ordering
-'use strict';
 
 import { insist, insistFn } from '../insist';
 
-//const debugLog = typeof log === 'undefined' ? console.log : log;
+// const debugLog = typeof log === 'undefined' ? console.log : log;
 function debugLog() {} // disabled
 
 const scheduleHack = Promise.resolve(null);
@@ -15,7 +14,7 @@ function def(x) {
   return Object.freeze(x);
 }
 
-function isSymbol (x) {
+function isSymbol(x) {
   return typeof x === 'symbol';
 }
 
@@ -24,31 +23,31 @@ const debugToID = new WeakMap();
 function debugRegister(obj, info = null) {
   const debugID = debugNextID++;
   debugToID.set(obj, debugID);
-  debugLog("REGISTER ", debugID, obj);
+  debugLog('REGISTER ', debugID, obj);
   return debugID;
 }
 function debugID(key) {
   return debugToID.get(key);
 }
 
-
 // TODO what happens to the then result?
 function scheduleTodo(target, todo) {
-  debugLog("SCHEDULE ", debugID(todo), todo);
+  debugLog('SCHEDULE ', debugID(todo), todo);
   Promise.resolve(target).then(todo.onFulfill, todo.onReject);
 }
 
-function isBroken(target) { // todo
+function isBroken(target) {
+  // todo
   return false;
 }
 
 function debugLogDelivery(target, methodName) {
   if (Object(target) === target) {
     if (!Reflect.getOwnPropertyDescriptor(target, methodName)) {
-      //debugLog(`target[${methodName}] is missing for ${target}`);
+      // debugLog(`target[${methodName}] is missing for ${target}`);
     }
   } else if (typeof target !== 'string') {
-    //debugLog(`target IS WONKY: ${target}`);
+    // debugLog(`target IS WONKY: ${target}`);
   }
 }
 
@@ -63,16 +62,20 @@ class PendingDelivery {
     this.args = args;
     this.handler = handler;
     this.debugID = debugRegister(this);
-    //debugLog(`PendingDelivery[${which}] ${op}, ${args}`);
+    // debugLog(`PendingDelivery[${which}] ${op}, ${args}`);
 
-    this.onFulfill = (target) => {
+    this.onFulfill = target => {
       debugLogDelivery(target, methodName);
       let res;
       try {
         res = target[methodName](...args);
       } catch (reason) {
         // debugLog(`@@@@####$$$$ ${methodName} $$$$####@@@@`);
-        debugLog(`exception during delivery[${methodName}]`, reason, reason.stack);
+        debugLog(
+          `exception during delivery[${methodName}]`,
+          reason,
+          reason.stack,
+        );
         res = frozenRejection(reason);
       }
       // handler shouldn't ever throw an exception, but just in case let's look
@@ -80,15 +83,17 @@ class PendingDelivery {
       handler.resolve(res);
     };
 
-    this.onReject = (reason) => {
+    this.onReject = reason => {
       // shallow freeze in case it is an exception
       handler.resolve(frozenRejection(reason));
     };
 
-    //log(`PendingDelivery[${which}] ${op}, ${args}`);
+    // log(`PendingDelivery[${which}] ${op}, ${args}`);
   }
 
-  get isMessageSend() { return true; }
+  get isMessageSend() {
+    return true;
+  }
 }
 
 class PendingThen {
@@ -99,8 +104,8 @@ class PendingThen {
 
     this.debugTxt = onFulfill.toString();
 
-    this.onFulfill = (target) => {
-      debugLog("THEN ", debugID(this), this);
+    this.onFulfill = target => {
+      debugLog('THEN ', debugID(this), this);
       let res;
       try {
         res = onFulfill ? onFulfill(target) : target;
@@ -110,7 +115,7 @@ class PendingThen {
       handler.resolve(res);
     };
 
-    this.onReject = (reason) => {
+    this.onReject = reason => {
       let res;
       try {
         res = onReject ? onReject(reason) : frozenRejection(reason);
@@ -121,7 +126,9 @@ class PendingThen {
     };
   }
 
-  get isMessageSend() { return false; }
+  get isMessageSend() {
+    return false;
+  }
 }
 
 /**
@@ -136,8 +143,8 @@ class UnresolvedHandler {
   }
 
   resolve(target) {
-    insist(!this.forwardedTo, "Must be unresolved");
-    debugLog("RESOLVE ", debugID(target) || "*", target, "this:", this);
+    insist(!this.forwardedTo, 'Must be unresolved');
+    debugLog('RESOLVE ', debugID(target) || '*', target, 'this:', this);
     const targetInner = getInnerVow(target);
     // if the target is a vow, forward to it, otherwise
     // target might be a Presence, or local object, or received pass-by-copy
@@ -169,14 +176,14 @@ class UnresolvedHandler {
   }
 
   processBlockedFlows(blockedFlows) {
-    //debugLog(`Appending blocked flow ${blockedFlows}`);
+    // debugLog(`Appending blocked flow ${blockedFlows}`);
 
-    insist(!this.forwardedTo, "INTERNAL: Must be unforwarded to accept flows.");
+    insist(!this.forwardedTo, 'INTERNAL: Must be unforwarded to accept flows.');
     this.blockedFlows.push(...blockedFlows);
   }
 
   processSingle(todo, flow) {
-    debugLog("PROCESS unresolved ", debugID(todo), todo, this, flow);
+    debugLog('PROCESS unresolved ', debugID(todo), todo, this, flow);
     // the target of the next message is unresolved so
     // this flow is now waiting for shortTarget
     this.blockedFlows.push(flow);
@@ -204,13 +211,13 @@ class FulfilledHandler {
 
   processBlockedFlows(blockedFlows) {
     for (const flow of blockedFlows) {
-      //debugLog(`Processing blocked flow ${flow}`);
+      // debugLog(`Processing blocked flow ${flow}`);
       flow.scheduleUnblocked();
     }
   }
 
   processSingle(todo, flow) {
-    debugLog("PROCESS single ", debugID(todo), todo, this);
+    debugLog('PROCESS single ', debugID(todo), todo, this);
     scheduleTodo(this.value, todo);
     return true;
   }
@@ -218,7 +225,7 @@ class FulfilledHandler {
 def(FulfilledHandler);
 
 class FarRemoteHandler extends UnresolvedHandler {
-  constructor(serializer, vatID, swissnum, presence=null) {
+  constructor(serializer, vatID, swissnum, presence = null) {
     super();
     this.serializer = serializer;
     this.vatID = vatID;
@@ -239,7 +246,7 @@ class FarRemoteHandler extends UnresolvedHandler {
   }
 
   processSingle(todo, flow) {
-    debugLog("PROCESS remote ", debugID(todo), todo, this);
+    debugLog('PROCESS remote ', debugID(todo), todo, this);
 
     if (todo.isMessageSend) {
       const { methodName, args } = todo;
@@ -259,29 +266,43 @@ class FarRemoteHandler extends UnresolvedHandler {
       // object, but we do it with a swissbase so we can't deliberately
       // collide with anything currently allocated on the other end
 
-      const resultVow = makeUnresolvedRemoteVow(this.serializer, this.vatID,
-                                                resData.swissnum, flow);
-      debugLog("handlerOf(resultVow) = ", handlerOf(resultVow));
-      this.serializer.opSend(resData.swissbase, this.vatID, this.swissnum,
-                             methodName, args, resolutionOf);
-      this.serializer.registerRemoteVow(this.vatID, resData.swissnum, resultVow);
+      const resultVow = makeUnresolvedRemoteVow(
+        this.serializer,
+        this.vatID,
+        resData.swissnum,
+        flow,
+      );
+      debugLog('handlerOf(resultVow) = ', handlerOf(resultVow));
+      this.serializer.opSend(
+        resData.swissbase,
+        this.vatID,
+        this.swissnum,
+        methodName,
+        args,
+        resolutionOf,
+      );
+      this.serializer.registerRemoteVow(
+        this.vatID,
+        resData.swissnum,
+        resultVow,
+      );
 
       todo.handler.resolve(resultVow);
 
       return true;
-    } else if (this.value) {
+    }
+    if (this.value) {
       // this is a then() on a RemoteVow, which should cause a round trip to
       // flush all the previous messages, but doesn't actually target the
       // specific object. todo: flow enforcement
 
       // todo: opThen
-      //this.serializer.opThen(this.vatID, this.swissnum);
+      // this.serializer.opThen(this.vatID, this.swissnum);
 
       scheduleTodo(this.value, todo);
       return true;
-    } else {
-      return super.processSingle(todo, flow);
     }
+    return super.processSingle(todo, flow);
   }
 }
 def(FarRemoteHandler);
@@ -295,23 +316,23 @@ class InnerFlow {
   // add a message to the end of the flow
   // todo shorten and clean up shorten
   enqueue(innerVow, todo) {
-    //log('enqueue entering');
+    // log('enqueue entering');
     const firstR = innerVow.resolver;
     const shortTarget = shortenForwards(firstR, innerVow);
     if (this.pending.length === 0) {
-      //log(`InnerFlow.enqueue found an empty queue`);
+      // log(`InnerFlow.enqueue found an empty queue`);
       // This will be the first pending action, so it's either ready to schedule or
       // is what this flow will be waiting on
       const processed = shortTarget.processSingle(todo, this);
       if (processed) {
         // fastpath; the action was scheduled immediately since it was ready and the flow was empty
-        //log(`InnerFlow.enqueue exiting on fast path`);
+        // log(`InnerFlow.enqueue exiting on fast path`);
         return;
       }
     }
     this.pending.push([shortTarget, todo]);
-    //log(`InnerFlow.enqueue exiting with ${this.pending.length} entries`);
-    //log(`  e[0] is ${whichTodo.get(this.pending[0][1])}`);
+    // log(`InnerFlow.enqueue exiting with ${this.pending.length} entries`);
+    // log(`  e[0] is ${whichTodo.get(this.pending[0][1])}`);
   }
 
   // The blocking resolver has been resolved. Schedule all unlocked pending flows, in order
@@ -334,7 +355,7 @@ class InnerFlow {
 
   toStringX() {
     return `Flow {
-      pending: ${this.pending.join("  \n")}
+      pending: ${this.pending.join('  \n')}
     }`;
   }
 }
@@ -344,7 +365,7 @@ const flowToInner = new WeakMap();
 
 function realInnerFlow(value) {
   const result = flowToInner.get(value);
-  insist(result, "Valid instance required");
+  insist(result, 'Valid instance required');
   return result;
 }
 
@@ -358,7 +379,12 @@ export function makePresence(serializer, vatID, swissnum) {
   return presence;
 }
 
-export function makeUnresolvedRemoteVow(serializer, vatID, swissnum, flow=new InnerFlow()) {
+export function makeUnresolvedRemoteVow(
+  serializer,
+  vatID,
+  swissnum,
+  flow = new InnerFlow(),
+) {
   const handler = new FarRemoteHandler(serializer, vatID, swissnum);
   debugLog(`makeUnresolvedRemoteVow: ${vatID}/${swissnum}`);
   return new Vow(flow, handler);
@@ -376,7 +402,6 @@ class Flow {
     resolveFn(resultR);
     return new Vow(flow, innerResolver);
   }
-
 }
 def(Flow);
 
@@ -420,7 +445,7 @@ const resolverToInner = new WeakMap();
 // TODO change to throw TypeError if these aren't present.
 function validInnerResolver(value) {
   const result = resolverToInner.get(value);
-  insist(result, "Valid instance required");
+  insist(result, 'Valid instance required');
   return result;
 }
 
@@ -443,7 +468,7 @@ export function handlerOf(value) {
   if (!inner) {
     return undefined;
   }
-  debugLog("handlerOf says inner is ", inner);
+  debugLog('handlerOf says inner is ', inner);
   const firstR = inner.resolver;
   return shortenForwards(firstR, inner);
 }
@@ -454,7 +479,7 @@ export function isVow(value) {
 
 function validVow(value) {
   const result = vowToInner.get(value);
-  insist(result, "Valid instance required");
+  insist(result, 'Valid instance required');
   return result;
 }
 
@@ -462,7 +487,7 @@ class InnerVow {
   constructor(innerFlow, innerResolver) {
     this.flow = innerFlow;
     this.resolver = innerResolver;
-    //def(this);
+    // def(this);
   }
 
   get(target, op, receiver) {
@@ -476,9 +501,8 @@ class InnerVow {
         if (0) {
           // ordering hack, want to remove this
           return new Vow(this.flow, handler);
-        } else {
-          return new Vow(new InnerFlow(), handler);
         }
+        return new Vow(new InnerFlow(), handler);
       };
   }
 
@@ -492,9 +516,8 @@ class InnerVow {
     if (0) {
       // didn't need the ordering hack here, not sure why
       return new Vow(this.flow, handler);
-    } else {
-      return new Vow(new InnerFlow(), handler);
     }
+    return new Vow(new InnerFlow(), handler);
   }
 }
 
@@ -508,9 +531,9 @@ class Vow {
     // makes debugging annoying
     Object.defineProperty(this, 'e', {
       value: new Proxy({}, inner),
-      enumerable: false
+      enumerable: false,
     });
-    //def(this);
+    // def(this);
   }
 
   // TODO need second argument for `then`
@@ -525,38 +548,40 @@ class Vow {
     return new Vow(f, old.resolver);
   }
 
-
   static all(answerPs) {
     let countDown = answerPs.length;
     const answers = [];
-    if (countDown === 0) { return Vow.resolve(answers); }
-    return new Flow().makeVow((resolve) => {
+    if (countDown === 0) {
+      return Vow.resolve(answers);
+    }
+    return new Flow().makeVow(resolve => {
       answerPs.forEach((answerP, index) => {
         Vow.resolve(answerP).then(answer => {
           answers[index] = answer;
-          if (--countDown === 0) { resolve(answers); }
+          if (--countDown === 0) {
+            resolve(answers);
+          }
         });
       });
     });
-  };
+  }
 
   static join(xP, yP) {
     return Vow.all([xP, yP]).then(([x, y]) => {
       if (Object.is(x, y)) {
         return x;
-      } else {
-        throw new Error("not the same");
       }
+      throw new Error('not the same');
     });
-  };
+  }
 
   static race(answerPs) {
-    return new Flow().makeVow((resolve,reject) => {
-      for (let answerP of answerPs) {
-        Vow.resolve(answerP).then(resolve,reject);
-      };
+    return new Flow().makeVow((resolve, reject) => {
+      for (const answerP of answerPs) {
+        Vow.resolve(answerP).then(resolve, reject);
+      }
     });
-  };
+  }
 
   static resolve(val) {
     if (isVow(val)) {
@@ -571,11 +596,12 @@ class Vow {
   static fromFn(fn) {
     return Vow.resolve().then(() => fn());
   }
-
 }
 def(Vow);
 
 const asVow = Vow.resolve;
 
-export { Flow, Vow, makeResolver, asVow };
+export {
+  Flow, Vow, makeResolver, asVow,
+};
 export default Flow;

@@ -1,13 +1,12 @@
-let responses = new Set();
+const responses = new Set();
 
 function check() {
   if (responses.size >= 3) {
     log('++ EVERYTHING WORKS');
-  };
+  }
 }
 
 const o = {
-
   responseFromTwo(msg) {
     log('++ responseFromTwo', msg);
     responses.add('responseFromTwo');
@@ -27,7 +26,7 @@ const o = {
   },
 };
 
-export default function(argv) {
+export default function (argv) {
   Vow.resolve(argv.two).e.helloTwo("morning y'all");
   return o;
 }

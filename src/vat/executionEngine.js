@@ -2,13 +2,20 @@
 import { doSwissHashing } from './swissCrypto';
 import { makeWebkeyMarshal } from './webkey';
 
-export function makeEngine(def, hash58,
-                           Vow, isVow, Flow,
-                           makePresence, makeUnresolvedRemoteVow,
-                           handlerOf, resolutionOf,
-                           myVatID, myVatSecret,
-                           manager) {
-
+export function makeEngine(
+  def,
+  hash58,
+  Vow,
+  isVow,
+  Flow,
+  makePresence,
+  makeUnresolvedRemoteVow,
+  handlerOf,
+  resolutionOf,
+  myVatID,
+  myVatSecret,
+  manager,
+) {
   function allocateSwissStuff() {
     return marshal.allocateSwissStuff();
   }
@@ -18,33 +25,51 @@ export function makeEngine(def, hash58,
   }
 
   // todo: queue this until finishTurn
-  function opSend(resultSwissbase, targetVatID, targetSwissnum, methodName, args,
-                  resolutionOf) {
+  function opSend(
+    resultSwissbase,
+    targetVatID,
+    targetSwissnum,
+    methodName,
+    args,
+    resolutionOf,
+  ) {
     const argsS = marshal.serialize(def(args), resolutionOf);
-    const body = def({op: 'send',
-                      targetSwissnum,
-                      methodName,
-                      argsS,
-                      resultSwissbase,
-                     });
+    const body = def({
+      op: 'send',
+      targetSwissnum,
+      methodName,
+      argsS,
+      resultSwissbase,
+    });
     manager.sendTo(targetVatID, body);
   }
 
   function opWhen(targetVatID, targetSwissnum) {
-    const body = def({op: 'when',
-                      targetSwissnum,
-                     });
+    const body = def({
+      op: 'when',
+      targetSwissnum,
+    });
     manager.sendTo(targetVatID, body);
   }
 
   const serializer = {
-    opSend, opWhen,
-    allocateSwissStuff, registerRemoteVow,
+    opSend,
+    opWhen,
+    allocateSwissStuff,
+    registerRemoteVow,
   };
-  const marshal = makeWebkeyMarshal(log, hash58,
-                                    Vow, isVow, Flow,
-                                    makePresence, makeUnresolvedRemoteVow,
-                                    myVatID, myVatSecret, serializer);
+  const marshal = makeWebkeyMarshal(
+    log,
+    hash58,
+    Vow,
+    isVow,
+    Flow,
+    makePresence,
+    makeUnresolvedRemoteVow,
+    myVatID,
+    myVatSecret,
+    serializer,
+  );
   // marshal.serialize, unserialize, serializeToWebkey, unserializeWebkey
 
   // temporary, for tests
@@ -54,14 +79,16 @@ export function makeEngine(def, hash58,
     // todo: rename targetSwissnum to mySwissnum? The thing being resolved
     // lives on the sender, not the recipient.
     const valueS = marshal.serialize(def(value), resolutionOf);
-    const body = def({op: 'resolve',
-                      targetSwissnum,
-                      valueS,
-                     });
+    const body = def({
+      op: 'resolve',
+      targetSwissnum,
+      valueS,
+    });
     manager.sendTo(targetVatID, body);
   }
 
-  function rxSendOnly(opMsg) { // currently just for tests
+  function rxSendOnly(opMsg) {
+    // currently just for tests
     return doSendInternal(opMsg);
   }
 
@@ -88,9 +115,9 @@ export function makeEngine(def, hash58,
 
     // todo: It does not include seqnum (which must be visible to the manager).
     // sent messages are assigned a seqnum by the manager
-    //txMessage(recipientVatID, message)
+    // txMessage(recipientVatID, message)
 
-    //log(`op ${opMsg.op}`);
+    // log(`op ${opMsg.op}`);
     let done;
     if (opMsg.op === 'send') {
       const res = doSendInternal(opMsg);
@@ -103,24 +130,28 @@ export function makeEngine(def, hash58,
         // note: BrokenVow is pass-by-copy, so Vow.resolve(rej) causes a BrokenVow
       } else {
         // else it was really a sendOnly
-        log(`commsReceived got sendOnly, dropping result`);
+        log('commsReceived got sendOnly, dropping result');
       }
       done = res; // for testing
     } else if (opMsg.op === 'when') {
       const v = marshal.getMyTargetBySwissnum(opMsg.targetSwissnum);
       // todo: assert that it's a Vow, but really we should tolerate peer
       // being weird
-      Vow.resolve(v).then(res => opResolve(senderVatID,
-                                           opMsg.targetSwissnum,
-                                           res));
+      Vow.resolve(v).then(res =>
+        opResolve(senderVatID, opMsg.targetSwissnum, res),
+      );
       // todo: rejection
     } else if (opMsg.op === 'resolve') {
-      //log('-- got op resolve');
-      //log(' senderVatID', senderVatID);
-      //log(' valueS', opMsg.valueS);
-      const h = marshal.getOutboundResolver(senderVatID, opMsg.targetSwissnum, handlerOf);
-      //log(`h: ${h}`);
-      //log('found target');
+      // log('-- got op resolve');
+      // log(' senderVatID', senderVatID);
+      // log(' valueS', opMsg.valueS);
+      const h = marshal.getOutboundResolver(
+        senderVatID,
+        opMsg.targetSwissnum,
+        handlerOf,
+      );
+      // log(`h: ${h}`);
+      // log('found target');
       let value;
       try {
         value = marshal.unserialize(opMsg.valueS);
@@ -129,9 +160,9 @@ export function makeEngine(def, hash58,
         log(ex);
         throw ex;
       }
-      //log('found value', value);
+      // log('found value', value);
       h.resolve(value);
-      //log('did h.resolve');
+      // log('did h.resolve');
     }
     return done; // for testing, to wait until things are done
   }
@@ -143,7 +174,7 @@ export function makeEngine(def, hash58,
       return marshal.createPresence(sturdyref);
     },
     registerTarget(target, swissnum) {
-        marshal.registerTarget(target, swissnum, resolutionOf);
+      marshal.registerTarget(target, swissnum, resolutionOf);
     },
     // temporary
     marshal,
@@ -153,7 +184,6 @@ export function makeEngine(def, hash58,
     serialize(val) {
       return marshal.serialize(val, resolutionOf);
     },
-
   };
 
   return def(engine);

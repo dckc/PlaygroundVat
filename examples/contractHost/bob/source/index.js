@@ -1,4 +1,4 @@
-/*global Vow Flow def*/
+/* global Vow Flow def */
 // Copyright (C) 2013 Google Inc.
 // Copyright (C) 2018 Agoric
 //
@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export default function(argv) {
+export default function (argv) {
   const escrowSrc = argv.escrowSrc;
   const contractHostP = Vow.resolve(argv.host);
   const aliceP = Vow.resolve(argv.alice);
@@ -36,7 +36,7 @@ export default function(argv) {
     return bob;
   }
 
-  const check = function(allegedSrc, allegedSide) {
+  const check = function (allegedSrc, allegedSide) {
     // for testing purposes, alice and bob are willing to play
     // any side of any contract, so that the failure we're testing
     // is in the contractHost's checking
@@ -50,45 +50,47 @@ export default function(argv) {
      * Bob, and therefore a request that Bob sell something. OO naming
      * is a bit confusing here.
      */
-    buy: function(desc, paymentP) {
+    buy(desc, paymentP) {
       if (!initialized) {
         log('++ ERR: buy called before init()');
       }
       let amount;
       let good;
-      desc = ''+desc;
+      desc = `${desc}`;
       switch (desc) {
-      case 'shoe': {
-        amount = 10;
-        good = 'If it fits, ware it.';
-        break;
-      }
-      default: {
-        throw new Error('unknown desc: '+desc);
-      }
+        case 'shoe': {
+          amount = 10;
+          good = 'If it fits, ware it.';
+          break;
+        }
+        default: {
+          throw new Error(`unknown desc: ${desc}`);
+        }
       }
 
       return myMoneyPurseP.e.deposit(10, paymentP).then(_ => good);
     },
 
-    tradeWell: function(bobLies=false) {
+    tradeWell(bobLies = false) {
       log('++ bob.tradeWell starting');
       if (!initialized) {
         log('++ ERR: tradeWell called before init()');
       }
       const tokensP = contractHostP.e.setup(escrowSrc);
       const aliceTokenP = tokensP.then(tokens => tokens[0]);
-      const bobTokenP   = tokensP.then(tokens => tokens[1]);
+      const bobTokenP = tokensP.then(tokens => tokens[1]);
       let escrowSrcWeTellAlice = escrowSrc;
       if (bobLies) {
         escrowSrcWeTellAlice += 'NOT';
       }
-      const doneP = Vow.all([aliceP.e.invite(aliceTokenP,
-                                             escrowSrcWeTellAlice, 0),
-                             Vow.resolve(bob).e.invite(bobTokenP,
-                                                       escrowSrc, 1)]);
-      doneP.then(res => log('++ bob.tradeWell done'),
-                 rej => log('++ bob.tradeWell reject', rej));
+      const doneP = Vow.all([
+        aliceP.e.invite(aliceTokenP, escrowSrcWeTellAlice, 0),
+        Vow.resolve(bob).e.invite(bobTokenP, escrowSrc, 1),
+      ]);
+      doneP.then(
+        res => log('++ bob.tradeWell done'),
+        rej => log('++ bob.tradeWell reject', rej),
+      );
       return doneP;
     },
 
@@ -97,7 +99,7 @@ export default function(argv) {
      * this object, asking it to join in a contract instance. It is not
      * requesting that this object invite anything.
      */
-    invite: function(tokenP, allegedSrc, allegedSide) {
+    invite(tokenP, allegedSrc, allegedSide) {
       if (!initialized) {
         log('++ ERR: invite called before init()');
       }
@@ -109,7 +111,9 @@ export default function(argv) {
         stockSrcP: myStockIssuerP.e.makeEmptyPurse('bobStockSrc'),
         moneyDstP: myMoneyIssuerP.e.makeEmptyPurse('bobMoneyDst'),
         moneyNeeded: 10,
-        cancellationP: f.makeVow(function(r) { cancel = r; })
+        cancellationP: f.makeVow(r => {
+          cancel = r;
+        }),
       });
       const ackP = b.stockSrcP.e.deposit(7, myStockPurseP);
 
@@ -124,8 +128,9 @@ export default function(argv) {
         },
         rej => {
           log('++ bob.invite doneP reject', rej);
-        });
-    }
+        },
+      );
+    },
   });
   return bob;
 }
